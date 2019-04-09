@@ -1595,6 +1595,47 @@ static int ov5640_set_virtual_channel(struct ov5640_dev *sensor)
 	return ov5640_write_reg(sensor, OV5640_REG_DEBUG_MODE, temp);
 }
 
+#define v4l2_find_nearest_size(array, array_size, width_field, height_field, \
+			       width, height)				\
+	({								\
+		BUILD_BUG_ON(sizeof((array)->width_field) != sizeof(u32) || \
+			     sizeof((array)->height_field) != sizeof(u32)); \
+		(typeof(&(array)[0]))__v4l2_find_nearest_size(		\
+			(array), array_size, sizeof(*(array)),		\
+			offsetof(typeof(*(array)), width_field),	\
+			offsetof(typeof(*(array)), height_field),	\
+			width, height);					\
+	})
+
+const void *
+__v4l2_find_nearest_size(const void *array, size_t array_size,
+			 size_t entry_size, size_t width_offset,
+			 size_t height_offset, s32 width, s32 height)
+{
+	u32 error, min_error = U32_MAX;
+	const void *best = NULL;
+	unsigned int i;
+
+	if (!array)
+		return NULL;
+
+	for (i = 0; i < array_size; i++, array += entry_size) {
+		const u32 *entry_width = array + width_offset;
+		const u32 *entry_height = array + height_offset;
+
+		error = abs(*entry_width - width) + abs(*entry_height - height);
+		if (error > min_error)
+			continue;
+
+		min_error = error;
+		best = array;
+		if (!error)
+			break;
+	}
+
+	return best;
+}
+
 static const struct ov5640_mode_info *
 ov5640_find_mode(struct ov5640_dev *sensor, enum ov5640_frame_rate fr,
 		 int width, int height, bool nearest)
@@ -1824,7 +1865,7 @@ static int ov5640_set_mode(struct ov5640_dev *sensor)
 	 */
 	rate = mode->vtot * mode->htot * 16;
 	rate *= ov5640_framerates[sensor->current_fr];
-	if (sensor->ep.bus_type == V4L2_MBUS_CSI2_DPHY) {
+	if (sensor->ep.bus_type == V4L2_MBUS_CSI2) {
 		rate = rate / sensor->ep.bus.mipi_csi2.num_data_lanes;
 		ret = ov5640_set_mipi_pclk(sensor, rate);
 	} else {
@@ -2000,7 +2041,7 @@ static int ov5640_set_power(struct ov5640_dev *sensor, bool on)
 			goto power_off;
 
 		/* We're done here for DVP bus, while CSI-2 needs setup. */
-		if (sensor->ep.bus_type != V4L2_MBUS_CSI2_DPHY)
+		if (sensor->ep.bus_type != V4L2_MBUS_CSI2)
 			return 0;
 
 		/*
@@ -2047,7 +2088,7 @@ static int ov5640_set_power(struct ov5640_dev *sensor, bool on)
 		usleep_range(500, 1000);
 
 	} else {
-		if (sensor->ep.bus_type == V4L2_MBUS_CSI2_DPHY) {
+		if (sensor->ep.bus_type == V4L2_MBUS_CSI2) {
 			/* Reset MIPI bus settings to their default values. */
 			ov5640_write_reg(sensor,
 					 OV5640_REG_IO_MIPI_CTRL00, 0x58);
@@ -2860,7 +2901,7 @@ static int ov5640_s_stream(struct v4l2_subdev *sd, int enable)
 			sensor->pending_fmt_change = false;
 		}
 
-		if (sensor->ep.bus_type == V4L2_MBUS_CSI2_DPHY)
+		if (sensor->ep.bus_type == V4L2_MBUS_CSI2)
 			ret = ov5640_set_stream_mipi(sensor, enable);
 		else
 			ret = ov5640_set_stream_dvp(sensor, enable);
