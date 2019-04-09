@@ -218,6 +218,7 @@ struct ov5640_ctrls {
 	struct v4l2_ctrl *test_pattern;
 	struct v4l2_ctrl *hflip;
 	struct v4l2_ctrl *vflip;
+	struct v4l2_ctrl *pixel_clock;
 };
 
 struct ov5640_dev {
@@ -1840,7 +1841,7 @@ static int ov5640_set_mode(struct ov5640_dev *sensor)
 	enum ov5640_downsize_mode dn_mode, orig_dn_mode;
 	bool auto_gain = sensor->ctrls.auto_gain->val == 1;
 	bool auto_exp =  sensor->ctrls.auto_exp->val == V4L2_EXPOSURE_AUTO;
-	unsigned long rate;
+	unsigned long rate, pclock;
 	int ret;
 
 	dn_mode = mode->dn_mode;
@@ -1865,6 +1866,8 @@ static int ov5640_set_mode(struct ov5640_dev *sensor)
 	 */
 	rate = mode->vtot * mode->htot * 16;
 	rate *= ov5640_framerates[sensor->current_fr];
+	__v4l2_ctrl_s_ctrl_int64(sensor->ctrls.pixel_clock, rate / 8);
+
 	if (sensor->ep.bus_type == V4L2_MBUS_CSI2) {
 		rate = rate / sensor->ep.bus.mipi_csi2.num_data_lanes;
 		ret = ov5640_set_mipi_pclk(sensor, rate);
@@ -2744,6 +2747,9 @@ static int ov5640_init_controls(struct ov5640_dev *sensor)
 				       V4L2_CID_POWER_LINE_FREQUENCY_AUTO, 0,
 				       V4L2_CID_POWER_LINE_FREQUENCY_50HZ);
 
+	ctrls->pixel_clock = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_PIXEL_RATE,
+					       1, INT_MAX, 1, 1);
+
 	if (hdl->error) {
 		ret = hdl->error;
 		goto free_ctrls;
@@ -3055,6 +3061,8 @@ static int ov5640_probe(struct i2c_client *client,
 		dev_err(dev, "failed to get xclk\n");
 		return PTR_ERR(sensor->xclk);
 	}
+
+	clk_set_rate(sensor->xclk, 23880000);
 
 	sensor->xclk_freq = clk_get_rate(sensor->xclk);
 	if (sensor->xclk_freq < OV5640_XCLK_MIN ||
