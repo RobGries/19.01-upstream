@@ -5,13 +5,9 @@
 &msmgpio {
 
 	msmgpio_leds: msmgpio_leds {
-		pinmux {
-			function = "gpio";
-			pins = "gpio21", "gpio22", "gpio23";
-		};
 		pinconf {
-			pins = "gpio21", "gpio22", "gpio23";
-			drive-strength = <16>;
+			pins = "gpio21", "gpio120";
+			function = "gpio";
 			output-low;
 		};
 	};
@@ -42,4 +38,4 @@
 			bias-pull-up;
 		};
 	};
-}
+};

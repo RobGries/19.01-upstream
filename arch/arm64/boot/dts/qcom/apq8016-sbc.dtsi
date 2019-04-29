@@ -70,11 +70,13 @@
 			status = "okay";
 		};
 
+
 		i2c@78b9000 {
 		/* On Low speed expansion */
 			label = "LS-I2C1";
 			status = "okay";
 		};
+
 
 		leds {
 			pinctrl-names = "default";
@@ -83,7 +85,6 @@
 				    <&pm8916_mpps_leds>;
 
 			compatible = "gpio-leds";
-
 			led@1 {
 				label = "miku-red-led";
 				gpios = <&msmgpio 21 GPIO_ACTIVE_HIGH>;
@@ -146,6 +147,7 @@
 			};
 		};
 
+
 		lpass@07708000 {
 			status = "okay";
 		};
@@ -185,40 +187,40 @@
 
 		*/
 
-        sound: sound {
-                compatible = "qcom,apq8016-sbc-sndcard";
-                reg = <0x07702000 0x4>, <0x07702004 0x4>;
-                reg-names = "mic-iomux", "spkr-iomux";
+                sound: sound {
+                        compatible = "qcom,apq8016-sbc-sndcard";
+                        reg = <0x07702000 0x4>, <0x07702004 0x4>;
+                        reg-names = "mic-iomux", "spkr-iomux";
 
-                status = "okay";
-                pinctrl-0 = <&cdc_pdm_lines_act &ext_sec_tlmm_lines_act &ext_mclk_tlmm_lines_act>;
-                pinctrl-1 = <&cdc_pdm_lines_sus &ext_sec_tlmm_lines_sus &ext_mclk_tlmm_lines_sus>;
-                pinctrl-names = "default", "sleep";
-                qcom,model = "DB410c";
-                qcom,audio-routing =
-                        "AMIC1", "MIC BIAS External1",
-                        "AMIC3", "MIC BIAS Internal1";
+                        status = "okay";
+                        pinctrl-0 = <&cdc_pdm_lines_act &ext_sec_tlmm_lines_act &ext_mclk_tlmm_lines_act>;
+                        pinctrl-1 = <&cdc_pdm_lines_sus &ext_sec_tlmm_lines_sus &ext_mclk_tlmm_lines_sus>;
+                        pinctrl-names = "default", "sleep";
+                        qcom,model = "DB410c";
+                        qcom,audio-routing =
+                                "AMIC1", "MIC BIAS External1",
+                                "AMIC3", "MIC BIAS Internal1";
 
-                internal-codec-playback-dai-link@0 {            /* I2S - Internal codec */
-                        link-name = "WCD";
-                        cpu { /* PRIMARY */
-                                sound-dai = <&lpass MI2S_PRIMARY>;
+                        internal-codec-playback-dai-link@0 {            /* I2S - Internal codec */
+                                link-name = "WCD";
+                                cpu { /* PRIMARY */
+                                        sound-dai = <&lpass MI2S_PRIMARY>;
+                                };
+                                codec {
+                                        sound-dai = <&lpass_codec 0>, <&wcd_codec 0>;
+                                };
                         };
-                        codec {
-                                sound-dai = <&lpass_codec 0>, <&wcd_codec 0>;
+
+                        internal-codec-capture-dai-link@0 {             /* I2S - Internal codec */
+                                link-name = "WCD-Capture";
+                                cpu { /* PRIMARY */
+                                        sound-dai = <&lpass MI2S_TERTIARY>;
+                                };
+                                codec {
+                                        sound-dai = <&lpass_codec 1>, <&wcd_codec 1>;
+                                };
                         };
                 };
-
-                internal-codec-capture-dai-link@0 {             /* I2S - Internal codec */
-                        link-name = "WCD-Capture";
-                        cpu { /* PRIMARY */
-                                sound-dai = <&lpass MI2S_TERTIARY>;
-                        };
-                        codec {
-                                sound-dai = <&lpass_codec 1>, <&wcd_codec 1>;
-                        };
-                };
-        };
 
 		spmi@200f000 {
 			pm8916@1 {
@@ -253,20 +255,13 @@
 			regulator-always-on;
 		};
 
-		camera_vddd_1v5: fixedregulator@2 {
-			compatible = "regulator-fixed";
-			regulator-name = "camera_vddd";
-			regulator-min-microvolt = <1500000>;
-			regulator-max-microvolt = <1500000>;
-			regulator-always-on;
-		};
 
 		cci@1b0c000 {
 			status = "ok";
 
 			camera_rear@3b {
 				compatible = "ovti,ov5640";
-				reg = <0x3b>;
+				reg = <0x3b>; //Earlier build used 0x78...5645 used 0x76...would this be 0x3d?? Trying 3b first.
 
 				enable-gpios = <&msmgpio 34 GPIO_ACTIVE_HIGH>;
 				reset-gpios = <&msmgpio 35 GPIO_ACTIVE_LOW>;
@@ -279,7 +274,6 @@
 
 				vdddo-supply = <&camera_vdddo_1v8>;
 				vdda-supply = <&camera_vdda_2v8>;
-				vddd-supply = <&camera_vddd_1v5>;
 
 				status = "okay";
 
@@ -307,7 +301,6 @@
 
 				vdddo-supply = <&camera_vdddo_1v8>;
 				vdda-supply = <&camera_vdda_2v8>;
-				vddd-supply = <&camera_vddd_1v5>;
 
 				status = "disabled";
 
@@ -348,13 +341,30 @@
 		};
 	};
 
+/*	usb2513 {
+		compatible = "smsc,usb3503";
+		reset-gpios = <&pm8916_gpios 3 GPIO_ACTIVE_LOW>;
+		initial-mode = <1>;
+	};*/
+
 	usb_id: usb-id {
 		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&msmgpio 121 GPIO_ACTIVE_HIGH>;
+		vbus-gpio = <&msmgpio 121 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb_id_default>;
 	};
 
+/*	hdmi-out {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con: endpoint {
+				remote-endpoint = <&adv7533_out>;
+			};
+		};
+	};
+*/
 	gpio_keys {
 		compatible = "gpio-keys";
 		#address-cells = <1>;
@@ -459,10 +469,9 @@
 	};
 
 	l11 {
-		regulator-min-microvolt = <1750000>;
-		regulator-max-microvolt = <3337000>;
-		regulator-allow-set-load;
-		regulator-system-load = <200000>;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3000000>;
+		regulator-initial-mode = <1>;
 	};
 
 	l12 {

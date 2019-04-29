@@ -13,7 +13,6 @@
 
 &msmgpio {
 
-
 	blsp1_uart1_default: blsp1_uart1_default {
 		pinmux {
 			function = "blsp_uart1";
@@ -63,7 +62,6 @@
 		};
 	};
 
-
 	i2c2_default: i2c2_default {
 		pinmux {
 			function = "blsp_i2c2";
@@ -87,7 +85,6 @@
 			bias-disable = <0>;
 		};
 	};
-
 
 	i2c5_default: i2c5_default {
 		pinmux {
@@ -523,7 +520,6 @@
 		};
 	};
 
-//DIFF!!!! pinconf_pwdn has output high defined!
 	camera_rear_default: camera_rear_default {
 		pinmux_pwdn {
 			function = "gpio";
