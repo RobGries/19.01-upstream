@@ -757,6 +757,7 @@ int venus_helper_set_num_bufs(struct venus_inst *inst, unsigned int input_bufs,
 			"Failed to set actual buffer count %d for buffer type %d\n",
 			buf_count.count_actual, buf_count.type);
 		return ret;
+	}
 
 	buf_count.type = HFI_BUFFER_OUTPUT;
 	buf_count.count_actual = output_bufs;
