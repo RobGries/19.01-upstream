@@ -86,6 +86,7 @@ int hfi_core_init(struct venus_core *core)
 
 	core->state = CORE_INIT;
 unlock:
+	printk("Failed to init hfi_core! @venus/hfi.c@59\n");
 	mutex_unlock(&core->lock);
 	return ret;
 }
@@ -121,8 +122,13 @@ int hfi_core_deinit(struct venus_core *core, bool blocking)
 
 	ret = core->ops->core_deinit(core);
 
-	if (!ret)
+	if (!ret) {
+		printk("hfi_core deinit! @venus/hfi.c@100\n");
 		core->state = CORE_UNINIT;
+	}
+	else {
+		printk("failed hfi_core deinit! @venus/hfi.c@100\n");
+	}
 
 unlock:
 	mutex_unlock(&core->lock);
@@ -133,15 +139,18 @@ int hfi_core_suspend(struct venus_core *core)
 {
 	if (core->state != CORE_INIT)
 		return 0;
-
+	printk("failed hfi_core suspend! @venus/hfi.c@138\n");
 	return core->ops->suspend(core);
 }
 
 int hfi_core_resume(struct venus_core *core, bool force)
 {
-	if (!force && core->state != CORE_INIT)
+	if (!force && core->state != CORE_INIT) {
+		printk("failed hfi_core resume! @venus/hfi.c@147\n");
 		return 0;
+	}
 
+	printk("hfi_core resume! @venus/hfi.c@147\n");
 	return core->ops->resume(core);
 }
 
@@ -157,11 +166,14 @@ int hfi_core_ping(struct venus_core *core)
 	mutex_lock(&core->lock);
 
 	ret = core->ops->core_ping(core, 0xbeef);
-	if (ret)
+	if (ret) {
+		printk("failed hfi_core ping! @venus/hfi.c@168\n");
 		goto unlock;
+	}
 
 	ret = wait_for_completion_timeout(&core->done, TIMEOUT);
 	if (!ret) {
+		printk("hfi_core ping timeout! @venus/hfi.c@174\n");
 		ret = -ETIMEDOUT;
 		goto unlock;
 	}
@@ -178,8 +190,10 @@ static int wait_session_msg(struct venus_inst *inst)
 	int ret;
 
 	ret = wait_for_completion_timeout(&inst->done, TIMEOUT);
-	if (!ret)
+	if (!ret) {
+		printk("wait session msg timeout! @venus/hfi.c@188\n");
 		return -ETIMEDOUT;
+	}
 
 	if (inst->error != HFI_ERR_NONE)
 		return -EIO;

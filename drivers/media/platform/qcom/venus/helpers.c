@@ -419,6 +419,7 @@ static void return_buf_error(struct venus_inst *inst,
 	else
 		v4l2_m2m_dst_buf_remove_by_buf(m2m_ctx, vbuf);
 
+	printk("v4l2 buffer error of unknown type?\n");
 	v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_ERROR);
 }
 
@@ -459,8 +460,10 @@ session_process_buf(struct venus_inst *inst, struct vb2_v4l2_buffer *vbuf)
 	}
 
 	ret = hfi_session_process_buf(inst, &fdata);
-	if (ret)
+	if (ret) {
+		printk("Failed to process buffer @venus/helpers.c@464\n");
 		return ret;
+	}
 
 	return 0;
 }
@@ -730,21 +733,29 @@ int venus_helper_set_num_bufs(struct venus_inst *inst, unsigned int input_bufs,
 	buf_count.count_actual = input_bufs;
 
 	ret = hfi_session_set_property(inst, ptype, &buf_count);
-	if (ret)
+	if (ret) {
+		printk("Failed to set num_bufs on INPUT @venus/helpers.c@737\n");
 		return ret;
+	}
 
 	buf_count.type = HFI_BUFFER_OUTPUT;
 	buf_count.count_actual = output_bufs;
 
 	ret = hfi_session_set_property(inst, ptype, &buf_count);
-	if (ret)
+	if (ret) {
+		printk("Failed to set num_bufs on OUTPUT @venus/helpers.c@737\n");
 		return ret;
+	}
 
 	if (output2_bufs) {
 		buf_count.type = HFI_BUFFER_OUTPUT2;
 		buf_count.count_actual = output2_bufs;
 
 		ret = hfi_session_set_property(inst, ptype, &buf_count);
+		if (ret) {
+			printk("Failed to set num_bufs on OUTPUT2 @venus/helpers.c@754\n");
+			return ret;
+		}
 	}
 
 	return ret;
@@ -776,8 +787,10 @@ int venus_helper_set_color_format(struct venus_inst *inst, u32 pixfmt)
 		return -EINVAL;
 
 	hfi_format = to_hfi_raw_fmt(pixfmt);
-	if (!hfi_format)
+	if (!hfi_format) {
+		printk("Failed to set color format @venus/helpers.c@791\n");
 		return -EINVAL;
+	}
 
 	return venus_helper_set_raw_format(inst, hfi_format, buftype);
 }
@@ -1110,7 +1123,7 @@ EXPORT_SYMBOL_GPL(venus_helper_m2m_device_run);
 void venus_helper_m2m_job_abort(void *priv)
 {
 	struct venus_inst *inst = priv;
-
+	printk("m2m job ABORT! @venus/helpers.c@1126\n");
 	v4l2_m2m_job_finish(inst->m2m_dev, inst->m2m_ctx);
 }
 EXPORT_SYMBOL_GPL(venus_helper_m2m_job_abort);
@@ -1221,14 +1234,18 @@ int venus_helper_power_enable(struct venus_core *core, u32 session_type,
 		writel(0, ctrl);
 
 		ret = readl_poll_timeout(stat, val, val & BIT(1), 1, 100);
-		if (ret)
+		if (ret) {
+			printk("Failed to enable venus power! @venus/helpers.c@1236\n");
 			return ret;
+		}
 	} else {
 		writel(1, ctrl);
 
 		ret = readl_poll_timeout(stat, val, !(val & BIT(1)), 1, 100);
-		if (ret)
+		if (ret) {
+			printk("Failed to disable venus power! @venus/helpers.c@1236\n");
 			return ret;
+		}
 	}
 
 	return 0;
