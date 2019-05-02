@@ -683,11 +683,12 @@ static int venc_set_properties(struct venus_inst *inst)
 	}
 
 	if (inst->fmt_cap->pixfmt == V4L2_PIX_FMT_H264) {
-		struct hfi_h264_vui_timing_info info;
+		//struct hfi_h264_vui_timing_info info;
 		struct hfi_h264_entropy_control entropy;
 		struct hfi_h264_db_control deblock;
-
-		ptype = HFI_PROPERTY_PARAM_VENC_H264_VUI_TIMING_INFO;
+		
+/*Do not set VUI? Will this fix it or break it????*/
+/*		ptype = HFI_PROPERTY_PARAM_VENC_H264_VUI_TIMING_INFO;
 		info.enable = 1;
 		info.fixed_framerate = 1;
 		info.time_scale = NSEC_PER_SEC;
@@ -696,7 +697,7 @@ static int venc_set_properties(struct venus_inst *inst)
 		if (ret) {
 			printk("venc: failed to set h.264 vui @venus/venc.c@695\n");
 			return ret;
-		}
+		}*/
 
 		ptype = HFI_PROPERTY_PARAM_VENC_H264_ENTROPY_CONTROL;
 		entropy.entropy_mode = venc_v4l2_to_hfi(
