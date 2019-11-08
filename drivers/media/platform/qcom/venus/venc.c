@@ -758,16 +758,10 @@ static int venc_set_properties(struct venus_inst *inst)
 		return ret;
 	}
 
-	if (ctr->bitrate_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_VBR) 
-	{
-		printk("venc: Encoder is running in VBR MODE!\n");
+	if (ctr->bitrate_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_VBR)
 		rate_control = HFI_RATE_CONTROL_VBR_CFR;
-	}
 	else
-	{
-		printk("venc: Encoder is running in CBR MODE!\n");
 		rate_control = HFI_RATE_CONTROL_CBR_CFR;
-	}
 
 	ptype = HFI_PROPERTY_PARAM_VENC_RATE_CONTROL;
 	ret = hfi_session_set_property(inst, ptype, &rate_control);
