@@ -30,7 +30,7 @@
 #include "venc.h"
 
 #define NUM_B_FRAMES_MAX	4
-#define FRAMERATE_FACTOR	(1 << 16)
+#define FRAMERATE_FACTOR	BIT(16)
 
 /*
  * Three resons to keep MPLANE formats (despite that the number of planes
@@ -605,9 +605,9 @@ static int venc_enum_frameintervals(struct file *file, void *fh,
 		return -EINVAL;
 
 	fival->stepwise.min.numerator = FRAMERATE_FACTOR;
-	fival->stepwise.min.denominator = frate_max(inst) * FRAMERATE_FACTOR;
+	fival->stepwise.min.denominator = frate_max(inst) / FRAMERATE_FACTOR;
 	fival->stepwise.max.numerator = FRAMERATE_FACTOR;
-	fival->stepwise.max.denominator = frate_min(inst) * FRAMERATE_FACTOR;
+	fival->stepwise.max.denominator = frate_min(inst) / FRAMERATE_FACTOR;
 	fival->stepwise.step.numerator = 1;
 	fival->stepwise.step.denominator = 1;
 
@@ -668,13 +668,13 @@ static int venc_set_properties(struct venus_inst *inst)
 	}
 
 	framerate = inst->timeperframe.denominator * FRAMERATE_FACTOR;
-	framerate = DIV_ROUND_UP(framerate, inst->timeperframe.numerator);
+	/* next line is to round up */
+	framerate += inst->timeperframe.numerator - 1;
+	do_div(framerate, inst->timeperframe.numerator);
 
 	ptype = HFI_PROPERTY_CONFIG_FRAME_RATE;
 	frate.buffer_type = HFI_BUFFER_OUTPUT;
 	frate.framerate = framerate;
-	if (frate.framerate > frate_max(inst) * FRAMERATE_FACTOR)
-		frate.framerate = frate_max(inst) * FRAMERATE_FACTOR;
 
 	ret = hfi_session_set_property(inst, ptype, &frate);
 	if (ret) {
