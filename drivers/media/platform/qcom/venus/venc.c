@@ -656,16 +656,12 @@ static int venc_set_properties(struct venus_inst *inst)
 	int ret;
 
 	ret = venus_helper_set_work_mode(inst, VIDC_WORK_MODE_2);
-	if (ret) {
-		printk("venc: failed to set workmode 2 @venus/venc.c@658\n");
+	if (ret)
 		return ret;
-	}
 
 	ret = venus_helper_set_core_usage(inst, VIDC_CORE_ID_2);
-	if (ret) {
-		printk("venc: failed to set core usage to core 2 @venus/venc.c@664\n");
+	if (ret)
 		return ret;
-	}
 
 	framerate = inst->timeperframe.denominator * FRAMERATE_FACTOR;
 	framerate = DIV_ROUND_UP(framerate, inst->timeperframe.numerator);
@@ -677,10 +673,8 @@ static int venc_set_properties(struct venus_inst *inst)
 		frate.framerate = frate_max(inst);
 
 	ret = hfi_session_set_property(inst, ptype, &frate);
-	if (ret) {
-		printk("venc: failed to set framerate @venus/venc.c@681\n");
+	if (ret)
 		return ret;
-	}
 
 	if (inst->fmt_cap->pixfmt == V4L2_PIX_FMT_H264) {
 		struct hfi_h264_vui_timing_info info;
@@ -693,10 +687,8 @@ static int venc_set_properties(struct venus_inst *inst)
 		info.time_scale = NSEC_PER_SEC;
 
 		ret = hfi_session_set_property(inst, ptype, &info);
-		if (ret) {
-			printk("venc: failed to set h.264 vui @venus/venc.c@695\n");
+		if (ret)
 			return ret;
-		}
 
 		ptype = HFI_PROPERTY_PARAM_VENC_H264_ENTROPY_CONTROL;
 		entropy.entropy_mode = venc_v4l2_to_hfi(
@@ -705,10 +697,8 @@ static int venc_set_properties(struct venus_inst *inst)
 		entropy.cabac_model = HFI_H264_CABAC_MODEL_0;
 
 		ret = hfi_session_set_property(inst, ptype, &entropy);
-		if (ret) {
-			printk("venc: failed to set h.264 entropy_mode @venus/venc.c@707\n");
+		if (ret)
 			return ret;
-		}
 
 		ptype = HFI_PROPERTY_PARAM_VENC_H264_DEBLOCK_CONTROL;
 		deblock.mode = venc_v4l2_to_hfi(
@@ -718,10 +708,8 @@ static int venc_set_properties(struct venus_inst *inst)
 		deblock.slice_beta_offset = ctr->h264_loop_filter_beta;
 
 		ret = hfi_session_set_property(inst, ptype, &deblock);
-		if (ret) {
-			printk("venc: failed to set h.264 deblock @venus/venc.c@720\n");
+		if (ret)
 			return ret;
-		}
 	}
 
 	/* IDR periodicity, n:
@@ -732,20 +720,16 @@ static int venc_set_properties(struct venus_inst *inst)
 	ptype = HFI_PROPERTY_CONFIG_VENC_IDR_PERIOD;
 	idrp.idr_period = 1;
 	ret = hfi_session_set_property(inst, ptype, &idrp);
-	if (ret) {
-		printk("venc: failed to set h.264 IDR Period @venus/venc.c@734\n");
+	if (ret)
 		return ret;
-	}
 
 	if (ctr->num_b_frames) {
 		u32 max_num_b_frames = NUM_B_FRAMES_MAX;
 
 		ptype = HFI_PROPERTY_PARAM_VENC_MAX_NUM_B_FRAMES;
 		ret = hfi_session_set_property(inst, ptype, &max_num_b_frames);
-		if (ret) {
-			printk("venc: failed to set h.264 max_num_b_frames @venus/venc.c@744\n");
+		if (ret)
 			return ret;
-		}
 	}
 
 	ptype = HFI_PROPERTY_CONFIG_VENC_INTRA_PERIOD;
@@ -753,10 +737,8 @@ static int venc_set_properties(struct venus_inst *inst)
 	intra_period.bframes = ctr->num_b_frames;
 
 	ret = hfi_session_set_property(inst, ptype, &intra_period);
-	if (ret) {
-		printk("venc: failed to set h.264 intra_period @venus/venc.c@755\n");
+	if (ret)
 		return ret;
-	}
 
 	if (ctr->bitrate_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_VBR)
 		rate_control = HFI_RATE_CONTROL_VBR_CFR;
@@ -765,10 +747,8 @@ static int venc_set_properties(struct venus_inst *inst)
 
 	ptype = HFI_PROPERTY_PARAM_VENC_RATE_CONTROL;
 	ret = hfi_session_set_property(inst, ptype, &rate_control);
-	if (ret) {
-		printk("venc: failed to set h.264 rate_control @venus/venc.c@767\n");
+	if (ret)
 		return ret;
-	}
 
 	if (!ctr->bitrate)
 		bitrate = 64000;
@@ -780,10 +760,8 @@ static int venc_set_properties(struct venus_inst *inst)
 	brate.layer_id = 0;
 
 	ret = hfi_session_set_property(inst, ptype, &brate);
-	if (ret) {
-		printk("venc: failed to set h.264 target bitrate @venus/venc.c@782\n");
+	if (ret)
 		return ret;
-	}
 
 	if (!ctr->bitrate_peak)
 		bitrate *= 2;
@@ -795,10 +773,8 @@ static int venc_set_properties(struct venus_inst *inst)
 	brate.layer_id = 0;
 
 	ret = hfi_session_set_property(inst, ptype, &brate);
-	if (ret) {
-		printk("venc: failed to set h.264 max bitrate @venus/venc.c@799\n");
+	if (ret)
 		return ret;
-	}
 
 	if (inst->fmt_cap->pixfmt == V4L2_PIX_FMT_H264) {
 		profile = venc_v4l2_to_hfi(V4L2_CID_MPEG_VIDEO_H264_PROFILE,
@@ -829,10 +805,8 @@ static int venc_set_properties(struct venus_inst *inst)
 	pl.level = level;
 
 	ret = hfi_session_set_property(inst, ptype, &pl);
-	if (ret) {
-		printk("venc: failed to set h.264 profile and level @venus/venc.c@827\n");
+	if (ret)
 		return ret;
-	}
 
 	return 0;
 }
@@ -842,41 +816,30 @@ static int venc_init_session(struct venus_inst *inst)
 	int ret;
 
 	ret = hfi_session_init(inst, inst->fmt_cap->pixfmt);
-	if (ret) {
-		printk("venc: failed to start hfi_session @venus/venc.c@844\n");
+	if (ret)
 		return ret;
-	}
 
 	ret = venus_helper_set_input_resolution(inst, inst->width,
 						inst->height);
-	if (ret) {
-		printk("venc: failed to set input resolution @venus/venc.c@850\n");
+	if (ret)
 		goto deinit;
-	}
 
 	ret = venus_helper_set_output_resolution(inst, inst->width,
 						 inst->height,
 						 HFI_BUFFER_OUTPUT);
-	if (ret) {
-		printk("venc: failed to set output resolution @venus/venc.c@857\n");
+	if (ret)
 		goto deinit;
-	}
 
 	ret = venus_helper_set_color_format(inst, inst->fmt_out->pixfmt);
-	if (ret) {
-		printk("venc: failed to set color format @venus/venc.c@865\n");
+	if (ret)
 		goto deinit;
-	}
 
 	ret = venc_set_properties(inst);
-	if (ret) {
-		printk("venc: failed to set venc properties @venus/venc.c@871\n");
+	if (ret)
 		goto deinit;
-	}
 
 	return 0;
 deinit:
-	printk("venc: HFI denit call about to happen! @venus/venc.c@840\n");
 	hfi_session_deinit(inst);
 	return ret;
 }
@@ -887,10 +850,8 @@ static int venc_out_num_buffers(struct venus_inst *inst, unsigned int *num)
 	int ret;
 
 	ret = venc_init_session(inst);
-	if (ret) {
-		printk("venc: failed initialize session @venus/venc.c@884\n");
+	if (ret)
 		return ret;
-	}
 
 	ret = venus_helper_get_bufreq(inst, HFI_BUFFER_INPUT, &bufreq);
 
@@ -956,7 +917,6 @@ static int venc_queue_setup(struct vb2_queue *q,
 		inst->output_buf_size = sizes[0];
 		break;
 	default:
-		printk("venc: fell through queue_setup BUFTYPE is neither OUTPUT nor CAPTURE MPLANE!\n");
 		ret = -EINVAL;
 		break;
 	}
@@ -1040,7 +1000,6 @@ static int venc_start_streaming(struct vb2_queue *q, unsigned int count)
 	return 0;
 
 deinit_sess:
-	printk("venc: failed to stream on @venus/venc.c@995\n");
 	hfi_session_deinit(inst);
 bufs_done:
 	venus_helper_buffers_done(inst, VB2_BUF_STATE_QUEUED);
@@ -1133,10 +1092,8 @@ static int m2m_queue_init(void *priv, struct vb2_queue *src_vq,
 	if (inst->core->res->hfi_version == HFI_VERSION_1XX)
 		src_vq->bidirectional = 1;
 	ret = vb2_queue_init(src_vq);
-	if (ret) {
-		printk("venc: failed init m2m queue on src_vq @venus/venc.c@1135\n");
+	if (ret)
 		return ret;
-	}
 
 	dst_vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
 	dst_vq->io_modes = VB2_MMAP | VB2_DMABUF;
@@ -1150,7 +1107,6 @@ static int m2m_queue_init(void *priv, struct vb2_queue *src_vq,
 	dst_vq->dev = inst->core->dev;
 	ret = vb2_queue_init(dst_vq);
 	if (ret) {
-		printk("venc: failed init m2m queue on dst_vq @venus/venc.c@1151\n");
 		vb2_queue_release(src_vq);
 		return ret;
 	}

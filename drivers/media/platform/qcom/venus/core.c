@@ -116,10 +116,8 @@ static int venus_clks_get(struct venus_core *core)
 
 	for (i = 0; i < res->clks_num; i++) {
 		core->clks[i] = devm_clk_get(dev, res->clks[i]);
-		if (IS_ERR(core->clks[i])) {
-			dev_warn(core->dev, "Failed to get clock (%d)\n", i);
+		if (IS_ERR(core->clks[i]))
 			return PTR_ERR(core->clks[i]);
-		}
 	}
 
 	return 0;
@@ -133,10 +131,8 @@ static int venus_clks_enable(struct venus_core *core)
 
 	for (i = 0; i < res->clks_num; i++) {
 		ret = clk_prepare_enable(core->clks[i]);
-		if (ret) {
-			dev_warn(core->dev, "Failed to enable clock (%d)\n", i);
+		if (ret)
 			goto err;
-		}
 	}
 
 	return 0;
@@ -195,10 +191,8 @@ static int venus_enumerate_codecs(struct venus_core *core, u32 type)
 		return 0;
 
 	inst = kzalloc(sizeof(*inst), GFP_KERNEL);
-	if (!inst) {
-		dev_warn(core->dev, "Failed to alloc instance venus/core.c@198");
+	if (!inst)
 		return -ENOMEM;
-	}
 
 	mutex_init(&inst->lock);
 	inst->core = core;
@@ -229,7 +223,6 @@ static int venus_enumerate_codecs(struct venus_core *core, u32 type)
 done:
 	hfi_session_destroy(inst);
 err:
-	dev_warn(core->dev, "Failed to venus_enumerate_codecs venus/core.c@231");
 	mutex_destroy(&inst->lock);
 	kfree(inst);
 
@@ -244,10 +237,8 @@ static int venus_probe(struct platform_device *pdev)
 	int ret;
 
 	core = devm_kzalloc(dev, sizeof(*core), GFP_KERNEL);
-	if (!core) {
-		dev_warn(core->dev, "Failed to alloc instance venus/core.c@247");
+	if (!core)
 		return -ENOMEM;
-	}
 
 	core->dev = dev;
 	platform_set_drvdata(pdev, core);
@@ -354,8 +345,6 @@ static int venus_remove(struct platform_device *pdev)
 	struct device *dev = core->dev;
 	int ret;
 
-	dev_warn(core->dev, "venus_remove hit, unregistering v4l2_dev! Is this desired?");
-
 	ret = pm_runtime_get_sync(dev);
 	WARN_ON(ret < 0);
 
@@ -379,8 +368,6 @@ static __maybe_unused int venus_runtime_suspend(struct device *dev)
 	struct venus_core *core = dev_get_drvdata(dev);
 	int ret;
 
-	dev_warn(core->dev, "venus_runtime_suspend hit, disabling core clocks. Is this desired?");
-
 	ret = hfi_core_suspend(core);
 
 	venus_clks_disable(core);
@@ -393,21 +380,17 @@ static __maybe_unused int venus_runtime_resume(struct device *dev)
 	struct venus_core *core = dev_get_drvdata(dev);
 	int ret;
 
-	dev_warn(core->dev, "venus_runtime_resume hit, enabling core clocks.");
-
 	ret = venus_clks_enable(core);
 	if (ret)
 		return ret;
 
 	ret = hfi_core_resume(core, false);
-	if (ret) 
+	if (ret)
 		goto err_clks_disable;
-
 
 	return 0;
 
 err_clks_disable:
-	dev_warn(core->dev, "failed do disable clocks venus/core.c@401");
 	venus_clks_disable(core);
 	return ret;
 }
