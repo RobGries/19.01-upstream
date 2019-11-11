@@ -2177,8 +2177,14 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 
 	switch (initiator) {
 	case NL80211_REGDOM_SET_BY_CORE:
-		treatment = reg_process_hint_core(reg_request);
-		break;
+		//hand merge in https://github.com/RobGries/96b_4.14_kernel/commit/0c99f21d1ae79b6e6b38deb4166db150c8f74e68.patch
+		//for 80211 5GHz support disablement.
+		//treatment = reg_process_hint_core(reg_request);
+		//break;
+		reg_process_hint_core(reg_request);
+		nl80211_send_reg_change_event(reg_request);
+		reg_set_request_processed();
+		return;
 	case NL80211_REGDOM_SET_BY_USER:
 		treatment = reg_process_hint_user(reg_request);
 		break;
