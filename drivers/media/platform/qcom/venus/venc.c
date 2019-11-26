@@ -717,12 +717,13 @@ static int venc_set_properties(struct venus_inst *inst)
 	 * n = 1 - all I-frames will be IDR frames
 	 * n > 1 - every n-th I-frame will be IDR frame
 	 */
+
 /*	ptype = HFI_PROPERTY_CONFIG_VENC_IDR_PERIOD;
-	idrp.idr_period = 15;
+	idrp.idr_period = 1;
 	ret = hfi_session_set_property(inst, ptype, &idrp);
 	if (ret)
-		return ret;*/
-
+		return ret;
+*/
 	if (ctr->num_b_frames) {
 		u32 max_num_b_frames = NUM_B_FRAMES_MAX;
 
