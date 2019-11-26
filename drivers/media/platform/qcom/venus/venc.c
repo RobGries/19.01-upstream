@@ -650,7 +650,7 @@ static int venc_set_properties(struct venus_inst *inst)
 	struct hfi_profile_level pl;
 	struct hfi_framerate frate;
 	struct hfi_bitrate brate;
-	struct hfi_idr_period idrp;
+	//struct hfi_idr_period idrp;
 	u32 ptype, rate_control, bitrate, profile = 0, level = 0;
 	u64 framerate;
 	int ret;
@@ -717,11 +717,11 @@ static int venc_set_properties(struct venus_inst *inst)
 	 * n = 1 - all I-frames will be IDR frames
 	 * n > 1 - every n-th I-frame will be IDR frame
 	 */
-	ptype = HFI_PROPERTY_CONFIG_VENC_IDR_PERIOD;
+/*	ptype = HFI_PROPERTY_CONFIG_VENC_IDR_PERIOD;
 	idrp.idr_period = 15;
 	ret = hfi_session_set_property(inst, ptype, &idrp);
 	if (ret)
-		return ret;
+		return ret;*/
 
 	if (ctr->num_b_frames) {
 		u32 max_num_b_frames = NUM_B_FRAMES_MAX;
