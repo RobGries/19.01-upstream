@@ -73,8 +73,15 @@
 
 		spi@78b7000 {
 		/* On High speed expansion */
-			label = "HS-SPI1";
+			label = "HS-SPI0";
 			status = "okay";
+
+			xethru@0 {
+				compatible = "xethru,xtxx";
+				spi-max-frequency = <5000000>;
+				reg = <0>;
+			};
+
 		};
 
 		i2c@78b9000 {
