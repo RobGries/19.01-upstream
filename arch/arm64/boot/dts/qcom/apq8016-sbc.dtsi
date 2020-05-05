@@ -255,13 +255,20 @@
 			regulator-always-on;
 		};
 
+		camera_vddd_1v5: fixedregulator@2 {
+			compatible = "regulator-fixed";
+			regulator-name = "camera_vddd";
+			regulator-min-microvolt = <1500000>;
+			regulator-max-microvolt = <1500000>;
+			regulator-always-on;
+		};
 
 		cci@1b0c000 {
 			status = "ok";
 
-			camera_rear@78 {
+			camera_rear@3b {
 				compatible = "ovti,ov5640";
-				reg = <0x78>; //Earlier build used 0x78...5645 used 0x76...would this be 0x3d?? Trying 3b first.
+				reg = <0x3b>; 
 
 				enable-gpios = <&msmgpio 34 GPIO_ACTIVE_HIGH>;
 				reset-gpios = <&msmgpio 35 GPIO_ACTIVE_LOW>;
@@ -274,6 +281,7 @@
 
 				vdddo-supply = <&camera_vdddo_1v8>;
 				vdda-supply = <&camera_vdda_2v8>;
+				vddd-supply = <&camera_vddd_1v5>;
 
 				status = "okay";
 
@@ -328,6 +336,7 @@
 						status = "okay";
 					};
 				};
+				
 				port@1 {
 					reg = <1>;
 					csiphy1_ep: endpoint {
