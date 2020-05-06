@@ -3296,9 +3296,10 @@ static int ov5640_probe(struct i2c_client *client,
 	}
 
 	/* get system clock (xclk) */
-	sensor->xclk = devm_clk_get(dev, "xclk");
+	//sensor->xclk = devm_clk_get(dev, "xclk");
+	sensor->xclk = devm_clk_get(dev, "osc");
 	if (IS_ERR(sensor->xclk)) {
-		dev_err(dev, "failed to get xclk\n");
+		dev_err(dev, "failed to get xclk or osc\n");
 		return PTR_ERR(sensor->xclk);
 	}
 
