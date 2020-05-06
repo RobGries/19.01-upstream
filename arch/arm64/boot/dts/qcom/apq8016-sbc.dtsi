@@ -32,6 +32,12 @@
 		stdout-path = "serial0";
 	};
 
+	osc: osc {
+		compatible = "fixed-clock";
+		clock-frequency = <25000000>;
+		#clock-cells = <0>;
+	};
+
 	reserved-memory {
 		ramoops@bff00000{
 			compatible = "ramoops";
@@ -40,6 +46,13 @@
 			record-size = <0x20000>;
 			console-size = <0x20000>;
 			ftrace-size = <0x20000>;
+		};
+
+		linux,cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x00000000 0x08000000>;
+			linux,cma-default;
 		};
 	};
 
@@ -283,13 +296,34 @@
 				vdda-supply = <&camera_vdda_2v8>;
 				vddd-supply = <&camera_vddd_1v5>;
 
-				status = "okay";
+				status = "disabled";
 
 				port {
 					ov5640_ep: endpoint {
 						clock-lanes = <1>;
 						data-lanes = <0 2>;
 						remote-endpoint = <&csiphy0_ep>;
+					};
+				};
+			};
+
+			ov: camera@78 {
+				compatible = "ovti,ov5640";
+				reg = <0x78>;
+
+				enable-gpios = <&msmgpio 34 GPIO_ACTIVE_HIGH>;
+				reset-gpios = <&msmgpio 35 GPIO_ACTIVE_LOW>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&camera_rear_default>;
+
+				clocks = <&osc>;
+				clock-frequency = <25000000>;
+
+				port {
+					ov5640_ep: endpoint {
+						remote-endpoint = <&csiphy0_ep>;
+						clock-lanes = <2>;
+						data-lanes = <0 1>;
 					};
 				};
 			};
@@ -330,13 +364,12 @@
 				port@0 {
 					reg = <0>;
 					csiphy0_ep: endpoint {
-						clock-lanes = <1>;
+						clock-lanes = <2>;
 						data-lanes = <0 2>;
 						remote-endpoint = <&ov5640_ep>;
-						status = "okay";
 					};
 				};
-				
+
 				port@1 {
 					reg = <1>;
 					csiphy1_ep: endpoint {
