@@ -32,12 +32,6 @@
 		stdout-path = "serial0";
 	};
 
-	osc: osc {
-		compatible = "fixed-clock";
-		clock-frequency = <25000000>;
-		#clock-cells = <0>;
-	};
-
 	reserved-memory {
 		ramoops@bff00000{
 			compatible = "ramoops";
@@ -46,13 +40,6 @@
 			record-size = <0x20000>;
 			console-size = <0x20000>;
 			ftrace-size = <0x20000>;
-		};
-
-		linux,cma {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x00000000 0x08000000>;
-			linux,cma-default;
 		};
 	};
 
@@ -288,8 +275,9 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&camera_rear_default>;
 
-				clocks = <&osc>;
-				clock-frequency = <25000000>;
+				clocks = <&gcc GCC_CAMSS_MCLK0_CLK>;
+				clock-names = "xclk";
+				clock-frequency = <23880000>;
 
 				vdddo-supply = <&camera_vdddo_1v8>;
 				vdda-supply = <&camera_vdda_2v8>;
