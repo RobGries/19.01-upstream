@@ -279,9 +279,9 @@
 		cci@1b0c000 {
 			status = "ok";
 
-			camera_rear@3b {
+			camera_rear@78 {
 				compatible = "ovti,ov5640";
-				reg = <0x3b>; 
+				reg = <0x78>; 
 
 				enable-gpios = <&msmgpio 34 GPIO_ACTIVE_HIGH>;
 				reset-gpios = <&msmgpio 35 GPIO_ACTIVE_LOW>;
