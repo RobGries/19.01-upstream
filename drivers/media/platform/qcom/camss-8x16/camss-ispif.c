@@ -1,21 +1,27 @@
-// SPDX-License-Identifier: GPL-2.0
 /*
  * camss-ispif.c
  *
  * Qualcomm MSM Camera Subsystem - ISPIF (ISP Interface) Module
  *
  * Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
- * Copyright (C) 2015-2018 Linaro Ltd.
+ * Copyright (C) 2015-2017 Linaro Ltd.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
 #include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/interrupt.h>
-#include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
-#include <linux/pm_runtime.h>
 #include <media/media-entity.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
@@ -24,6 +30,12 @@
 #include "camss.h"
 
 #define MSM_ISPIF_NAME "msm_ispif"
+
+#define ispif_line_array(ptr_line)	\
+	((const struct ispif_line (*)[]) &(ptr_line[-(ptr_line->id)]))
+
+#define to_ispif(ptr_line)	\
+	container_of(ispif_line_array(ptr_line), struct ispif_device, ptr_line)
 
 #define ISPIF_RST_CMD_0			0x008
 #define ISPIF_RST_CMD_0_STROBED_RST_EN		(1 << 0)
@@ -77,13 +89,6 @@
 					(0x254 + 0x200 * (m) + 0x4 * (n))
 #define ISPIF_VFE_m_RDI_INTF_n_CID_MASK(m, n)	\
 					(0x264 + 0x200 * (m) + 0x4 * (n))
-/* PACK_CFG registers are 8x96 only */
-#define ISPIF_VFE_m_RDI_INTF_n_PACK_CFG_0(m, n)	\
-					(0x270 + 0x200 * (m) + 0x4 * (n))
-#define ISPIF_VFE_m_RDI_INTF_n_PACK_CFG_1(m, n)	\
-					(0x27c + 0x200 * (m) + 0x4 * (n))
-#define ISPIF_VFE_m_RDI_INTF_n_PACK_CFG_0_CID_c_PLAIN(c)	\
-					(1 << ((cid % 8) * 4))
 #define ISPIF_VFE_m_PIX_INTF_n_STATUS(m, n)	\
 					(0x2c0 + 0x200 * (m) + 0x4 * (n))
 #define ISPIF_VFE_m_RDI_INTF_n_STATUS(m, n)	\
@@ -104,7 +109,7 @@ enum ispif_intf_cmd {
 	CMD_ALL_NO_CHANGE = 0xffffffff,
 };
 
-static const u32 ispif_formats_8x16[] = {
+static const u32 ispif_formats[] = {
 	MEDIA_BUS_FMT_UYVY8_2X8,
 	MEDIA_BUS_FMT_VYUY8_2X8,
 	MEDIA_BUS_FMT_YUYV8_2X8,
@@ -121,107 +126,16 @@ static const u32 ispif_formats_8x16[] = {
 	MEDIA_BUS_FMT_SGBRG12_1X12,
 	MEDIA_BUS_FMT_SGRBG12_1X12,
 	MEDIA_BUS_FMT_SRGGB12_1X12,
-	MEDIA_BUS_FMT_Y10_1X10,
-};
-
-static const u32 ispif_formats_8x96[] = {
-	MEDIA_BUS_FMT_UYVY8_2X8,
-	MEDIA_BUS_FMT_VYUY8_2X8,
-	MEDIA_BUS_FMT_YUYV8_2X8,
-	MEDIA_BUS_FMT_YVYU8_2X8,
-	MEDIA_BUS_FMT_SBGGR8_1X8,
-	MEDIA_BUS_FMT_SGBRG8_1X8,
-	MEDIA_BUS_FMT_SGRBG8_1X8,
-	MEDIA_BUS_FMT_SRGGB8_1X8,
-	MEDIA_BUS_FMT_SBGGR10_1X10,
-	MEDIA_BUS_FMT_SGBRG10_1X10,
-	MEDIA_BUS_FMT_SGRBG10_1X10,
-	MEDIA_BUS_FMT_SRGGB10_1X10,
-	MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_LE,
-	MEDIA_BUS_FMT_SBGGR12_1X12,
-	MEDIA_BUS_FMT_SGBRG12_1X12,
-	MEDIA_BUS_FMT_SGRBG12_1X12,
-	MEDIA_BUS_FMT_SRGGB12_1X12,
-	MEDIA_BUS_FMT_SBGGR14_1X14,
-	MEDIA_BUS_FMT_SGBRG14_1X14,
-	MEDIA_BUS_FMT_SGRBG14_1X14,
-	MEDIA_BUS_FMT_SRGGB14_1X14,
-	MEDIA_BUS_FMT_Y10_1X10,
-	MEDIA_BUS_FMT_Y10_2X8_PADHI_LE,
 };
 
 /*
- * ispif_isr_8x96 - ISPIF module interrupt handler for 8x96
+ * ispif_isr - ISPIF module interrupt handler
  * @irq: Interrupt line
  * @dev: ISPIF device
  *
  * Return IRQ_HANDLED on success
  */
-static irqreturn_t ispif_isr_8x96(int irq, void *dev)
-{
-	struct ispif_device *ispif = dev;
-	u32 value0, value1, value2, value3, value4, value5;
-
-	value0 = readl_relaxed(ispif->base + ISPIF_VFE_m_IRQ_STATUS_0(0));
-	value1 = readl_relaxed(ispif->base + ISPIF_VFE_m_IRQ_STATUS_1(0));
-	value2 = readl_relaxed(ispif->base + ISPIF_VFE_m_IRQ_STATUS_2(0));
-	value3 = readl_relaxed(ispif->base + ISPIF_VFE_m_IRQ_STATUS_0(1));
-	value4 = readl_relaxed(ispif->base + ISPIF_VFE_m_IRQ_STATUS_1(1));
-	value5 = readl_relaxed(ispif->base + ISPIF_VFE_m_IRQ_STATUS_2(1));
-
-	writel_relaxed(value0, ispif->base + ISPIF_VFE_m_IRQ_CLEAR_0(0));
-	writel_relaxed(value1, ispif->base + ISPIF_VFE_m_IRQ_CLEAR_1(0));
-	writel_relaxed(value2, ispif->base + ISPIF_VFE_m_IRQ_CLEAR_2(0));
-	writel_relaxed(value3, ispif->base + ISPIF_VFE_m_IRQ_CLEAR_0(1));
-	writel_relaxed(value4, ispif->base + ISPIF_VFE_m_IRQ_CLEAR_1(1));
-	writel_relaxed(value5, ispif->base + ISPIF_VFE_m_IRQ_CLEAR_2(1));
-
-	writel(0x1, ispif->base + ISPIF_IRQ_GLOBAL_CLEAR_CMD);
-
-	if ((value0 >> 27) & 0x1)
-		complete(&ispif->reset_complete);
-
-	if (unlikely(value0 & ISPIF_VFE_m_IRQ_STATUS_0_PIX0_OVERFLOW))
-		dev_err_ratelimited(to_device(ispif), "VFE0 pix0 overflow\n");
-
-	if (unlikely(value0 & ISPIF_VFE_m_IRQ_STATUS_0_RDI0_OVERFLOW))
-		dev_err_ratelimited(to_device(ispif), "VFE0 rdi0 overflow\n");
-
-	if (unlikely(value1 & ISPIF_VFE_m_IRQ_STATUS_1_PIX1_OVERFLOW))
-		dev_err_ratelimited(to_device(ispif), "VFE0 pix1 overflow\n");
-
-	if (unlikely(value1 & ISPIF_VFE_m_IRQ_STATUS_1_RDI1_OVERFLOW))
-		dev_err_ratelimited(to_device(ispif), "VFE0 rdi1 overflow\n");
-
-	if (unlikely(value2 & ISPIF_VFE_m_IRQ_STATUS_2_RDI2_OVERFLOW))
-		dev_err_ratelimited(to_device(ispif), "VFE0 rdi2 overflow\n");
-
-	if (unlikely(value3 & ISPIF_VFE_m_IRQ_STATUS_0_PIX0_OVERFLOW))
-		dev_err_ratelimited(to_device(ispif), "VFE1 pix0 overflow\n");
-
-	if (unlikely(value3 & ISPIF_VFE_m_IRQ_STATUS_0_RDI0_OVERFLOW))
-		dev_err_ratelimited(to_device(ispif), "VFE1 rdi0 overflow\n");
-
-	if (unlikely(value4 & ISPIF_VFE_m_IRQ_STATUS_1_PIX1_OVERFLOW))
-		dev_err_ratelimited(to_device(ispif), "VFE1 pix1 overflow\n");
-
-	if (unlikely(value4 & ISPIF_VFE_m_IRQ_STATUS_1_RDI1_OVERFLOW))
-		dev_err_ratelimited(to_device(ispif), "VFE1 rdi1 overflow\n");
-
-	if (unlikely(value5 & ISPIF_VFE_m_IRQ_STATUS_2_RDI2_OVERFLOW))
-		dev_err_ratelimited(to_device(ispif), "VFE1 rdi2 overflow\n");
-
-	return IRQ_HANDLED;
-}
-
-/*
- * ispif_isr_8x16 - ISPIF module interrupt handler for 8x16
- * @irq: Interrupt line
- * @dev: ISPIF device
- *
- * Return IRQ_HANDLED on success
- */
-static irqreturn_t ispif_isr_8x16(int irq, void *dev)
+static irqreturn_t ispif_isr(int irq, void *dev)
 {
 	struct ispif_device *ispif = dev;
 	u32 value0, value1, value2;
@@ -301,12 +215,12 @@ static int ispif_reset(struct ispif_device *ispif)
 		msecs_to_jiffies(ISPIF_RESET_TIMEOUT_MS));
 	if (!time) {
 		dev_err(to_device(ispif), "ISPIF reset timeout\n");
-		ret = -EIO;
+		return -EIO;
 	}
 
 	camss_disable_clocks(ispif->nclocks_for_reset, ispif->clock_for_reset);
 
-	return ret;
+	return 0;
 }
 
 /*
@@ -319,7 +233,7 @@ static int ispif_reset(struct ispif_device *ispif)
 static int ispif_set_power(struct v4l2_subdev *sd, int on)
 {
 	struct ispif_line *line = v4l2_get_subdevdata(sd);
-	struct ispif_device *ispif = line->ispif;
+	struct ispif_device *ispif = to_ispif(line);
 	struct device *dev = to_device(ispif);
 	int ret = 0;
 
@@ -332,19 +246,12 @@ static int ispif_set_power(struct v4l2_subdev *sd, int on)
 			goto exit;
 		}
 
-		ret = pm_runtime_get_sync(dev);
+		ret = camss_enable_clocks(ispif->nclocks, ispif->clock, dev);
 		if (ret < 0)
 			goto exit;
 
-		ret = camss_enable_clocks(ispif->nclocks, ispif->clock, dev);
-		if (ret < 0) {
-			pm_runtime_put_sync(dev);
-			goto exit;
-		}
-
 		ret = ispif_reset(ispif);
 		if (ret < 0) {
-			pm_runtime_put_sync(dev);
 			camss_disable_clocks(ispif->nclocks, ispif->clock);
 			goto exit;
 		}
@@ -359,7 +266,6 @@ static int ispif_set_power(struct v4l2_subdev *sd, int on)
 			goto exit;
 		} else if (ispif->power_count == 1) {
 			camss_disable_clocks(ispif->nclocks, ispif->clock);
-			pm_runtime_put_sync(dev);
 		}
 
 		ispif->power_count--;
@@ -672,55 +578,6 @@ static void ispif_config_irq(struct ispif_device *ispif, enum ispif_intf intf,
 }
 
 /*
- * ispif_config_pack - Config packing for PRDI mode
- * @ispif: ISPIF device
- * @code: media bus format code
- * @intf: VFE interface
- * @cid: desired CID to handle
- * @vfe: VFE HW module id
- * @enable: enable or disable
- */
-static void ispif_config_pack(struct ispif_device *ispif, u32 code,
-			      enum ispif_intf intf, u8 cid, u8 vfe, u8 enable)
-{
-	u32 addr, val;
-
-	if (code != MEDIA_BUS_FMT_SBGGR10_2X8_PADHI_LE &&
-	    code != MEDIA_BUS_FMT_Y10_2X8_PADHI_LE)
-		return;
-
-	switch (intf) {
-	case RDI0:
-		if (cid < 8)
-			addr = ISPIF_VFE_m_RDI_INTF_n_PACK_CFG_0(vfe, 0);
-		else
-			addr = ISPIF_VFE_m_RDI_INTF_n_PACK_CFG_1(vfe, 0);
-		break;
-	case RDI1:
-		if (cid < 8)
-			addr = ISPIF_VFE_m_RDI_INTF_n_PACK_CFG_0(vfe, 1);
-		else
-			addr = ISPIF_VFE_m_RDI_INTF_n_PACK_CFG_1(vfe, 1);
-		break;
-	case RDI2:
-		if (cid < 8)
-			addr = ISPIF_VFE_m_RDI_INTF_n_PACK_CFG_0(vfe, 2);
-		else
-			addr = ISPIF_VFE_m_RDI_INTF_n_PACK_CFG_1(vfe, 2);
-		break;
-	default:
-		return;
-	}
-
-	if (enable)
-		val = ISPIF_VFE_m_RDI_INTF_n_PACK_CFG_0_CID_c_PLAIN(cid);
-	else
-		val = 0;
-
-	writel_relaxed(val, ispif->base + addr);
-}
-
-/*
  * ispif_set_intf_cmd - Set command to enable/disable interface
  * @ispif: ISPIF device
  * @cmd: interface command
@@ -762,7 +619,7 @@ static void ispif_set_intf_cmd(struct ispif_device *ispif, u8 cmd,
 static int ispif_set_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct ispif_line *line = v4l2_get_subdevdata(sd);
-	struct ispif_device *ispif = line->ispif;
+	struct ispif_device *ispif = to_ispif(line);
 	enum ispif_intf intf = line->interface;
 	u8 csid = line->csid_id;
 	u8 vfe = line->vfe_id;
@@ -788,10 +645,6 @@ static int ispif_set_stream(struct v4l2_subdev *sd, int enable)
 		ispif_select_csid(ispif, intf, csid, vfe, 1);
 		ispif_select_cid(ispif, intf, cid, vfe, 1);
 		ispif_config_irq(ispif, intf, vfe, 1);
-		if (to_camss(ispif)->version == CAMSS_8x96)
-			ispif_config_pack(ispif,
-					  line->fmt[MSM_ISPIF_PAD_SINK].code,
-					  intf, cid, vfe, 1);
 		ispif_set_intf_cmd(ispif, CMD_ENABLE_FRAME_BOUNDARY,
 				   intf, vfe, vc);
 	} else {
@@ -805,10 +658,6 @@ static int ispif_set_stream(struct v4l2_subdev *sd, int enable)
 			return ret;
 
 		mutex_lock(&ispif->config_lock);
-		if (to_camss(ispif)->version == CAMSS_8x96)
-			ispif_config_pack(ispif,
-					  line->fmt[MSM_ISPIF_PAD_SINK].code,
-					  intf, cid, vfe, 0);
 		ispif_config_irq(ispif, intf, vfe, 0);
 		ispif_select_cid(ispif, intf, cid, vfe, 0);
 		ispif_select_csid(ispif, intf, csid, vfe, 0);
@@ -861,12 +710,12 @@ static void ispif_try_format(struct ispif_line *line,
 	case MSM_ISPIF_PAD_SINK:
 		/* Set format on sink pad */
 
-		for (i = 0; i < line->nformats; i++)
-			if (fmt->code == line->formats[i])
+		for (i = 0; i < ARRAY_SIZE(ispif_formats); i++)
+			if (fmt->code == ispif_formats[i])
 				break;
 
 		/* If not found, use UYVY as default */
-		if (i >= line->nformats)
+		if (i >= ARRAY_SIZE(ispif_formats))
 			fmt->code = MEDIA_BUS_FMT_UYVY8_2X8;
 
 		fmt->width = clamp_t(u32, fmt->width, 1, 8191);
@@ -904,10 +753,10 @@ static int ispif_enum_mbus_code(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 
 	if (code->pad == MSM_ISPIF_PAD_SINK) {
-		if (code->index >= line->nformats)
+		if (code->index >= ARRAY_SIZE(ispif_formats))
 			return -EINVAL;
 
-		code->code = line->formats[code->index];
+		code->code = ispif_formats[code->index];
 	} else {
 		if (code->index > 0)
 			return -EINVAL;
@@ -1058,36 +907,6 @@ int msm_ispif_subdev_init(struct ispif_device *ispif,
 	int i;
 	int ret;
 
-	/* Number of ISPIF lines - same as number of CSID hardware modules */
-	if (to_camss(ispif)->version == CAMSS_8x16)
-		ispif->line_num = 2;
-	else if (to_camss(ispif)->version == CAMSS_8x96)
-		ispif->line_num = 4;
-	else
-		return -EINVAL;
-
-	ispif->line = devm_kcalloc(dev, ispif->line_num, sizeof(*ispif->line),
-				   GFP_KERNEL);
-	if (!ispif->line)
-		return -ENOMEM;
-
-	for (i = 0; i < ispif->line_num; i++) {
-		ispif->line[i].ispif = ispif;
-		ispif->line[i].id = i;
-
-		if (to_camss(ispif)->version == CAMSS_8x16) {
-			ispif->line[i].formats = ispif_formats_8x16;
-			ispif->line[i].nformats =
-					ARRAY_SIZE(ispif_formats_8x16);
-		} else if (to_camss(ispif)->version == CAMSS_8x96) {
-			ispif->line[i].formats = ispif_formats_8x96;
-			ispif->line[i].nformats =
-					ARRAY_SIZE(ispif_formats_8x96);
-		} else {
-			return -EINVAL;
-		}
-	}
-
 	/* Memory */
 
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, res->reg[0]);
@@ -1116,14 +935,8 @@ int msm_ispif_subdev_init(struct ispif_device *ispif,
 	ispif->irq = r->start;
 	snprintf(ispif->irq_name, sizeof(ispif->irq_name), "%s_%s",
 		 dev_name(dev), MSM_ISPIF_NAME);
-	if (to_camss(ispif)->version == CAMSS_8x16)
-		ret = devm_request_irq(dev, ispif->irq, ispif_isr_8x16,
+	ret = devm_request_irq(dev, ispif->irq, ispif_isr,
 			       IRQF_TRIGGER_RISING, ispif->irq_name, ispif);
-	else if (to_camss(ispif)->version == CAMSS_8x96)
-		ret = devm_request_irq(dev, ispif->irq, ispif_isr_8x96,
-			       IRQF_TRIGGER_RISING, ispif->irq_name, ispif);
-	else
-		ret = -EINVAL;
 	if (ret < 0) {
 		dev_err(dev, "request_irq failed: %d\n", ret);
 		return ret;
@@ -1135,8 +948,7 @@ int msm_ispif_subdev_init(struct ispif_device *ispif,
 	while (res->clock[ispif->nclocks])
 		ispif->nclocks++;
 
-	ispif->clock = devm_kcalloc(dev,
-				    ispif->nclocks, sizeof(*ispif->clock),
+	ispif->clock = devm_kzalloc(dev, ispif->nclocks * sizeof(*ispif->clock),
 				    GFP_KERNEL);
 	if (!ispif->clock)
 		return -ENOMEM;
@@ -1156,10 +968,8 @@ int msm_ispif_subdev_init(struct ispif_device *ispif,
 	while (res->clock_for_reset[ispif->nclocks_for_reset])
 		ispif->nclocks_for_reset++;
 
-	ispif->clock_for_reset = devm_kcalloc(dev,
-					      ispif->nclocks_for_reset,
-					      sizeof(*ispif->clock_for_reset),
-					      GFP_KERNEL);
+	ispif->clock_for_reset = devm_kzalloc(dev, ispif->nclocks_for_reset *
+			sizeof(*ispif->clock_for_reset), GFP_KERNEL);
 	if (!ispif->clock_for_reset)
 		return -ENOMEM;
 
@@ -1173,6 +983,9 @@ int msm_ispif_subdev_init(struct ispif_device *ispif,
 		clock->freq = NULL;
 		clock->nfreqs = 0;
 	}
+
+	for (i = 0; i < ARRAY_SIZE(ispif->line); i++)
+		ispif->line[i].id = i;
 
 	mutex_init(&ispif->power_lock);
 	ispif->power_count = 0;
@@ -1292,7 +1105,7 @@ int msm_ispif_register_entities(struct ispif_device *ispif,
 	int ret;
 	int i;
 
-	for (i = 0; i < ispif->line_num; i++) {
+	for (i = 0; i < ARRAY_SIZE(ispif->line); i++) {
 		struct v4l2_subdev *sd = &ispif->line[i].subdev;
 		struct media_pad *pads = ispif->line[i].pads;
 
@@ -1353,7 +1166,7 @@ void msm_ispif_unregister_entities(struct ispif_device *ispif)
 	mutex_destroy(&ispif->power_lock);
 	mutex_destroy(&ispif->config_lock);
 
-	for (i = 0; i < ispif->line_num; i++) {
+	for (i = 0; i < ARRAY_SIZE(ispif->line); i++) {
 		struct v4l2_subdev *sd = &ispif->line[i].subdev;
 
 		v4l2_device_unregister_subdev(sd);

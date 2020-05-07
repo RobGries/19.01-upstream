@@ -1,11 +1,19 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * camss-csid.h
  *
  * Qualcomm MSM Camera Subsystem - CSID (CSI Decoder) Module
  *
  * Copyright (c) 2011-2014, The Linux Foundation. All rights reserved.
- * Copyright (C) 2015-2018 Linaro Ltd.
+ * Copyright (C) 2015-2017 Linaro Ltd.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
 #ifndef QC_MSM_CAMSS_CSID_H
 #define QC_MSM_CAMSS_CSID_H
@@ -42,7 +50,6 @@ struct csid_phy_config {
 };
 
 struct csid_device {
-	struct camss *camss;
 	u8 id;
 	struct v4l2_subdev subdev;
 	struct media_pad pads[MSM_CSID_PADS_NUM];
@@ -58,13 +65,11 @@ struct csid_device {
 	struct v4l2_mbus_framefmt fmt[MSM_CSID_PADS_NUM];
 	struct v4l2_ctrl_handler ctrls;
 	struct v4l2_ctrl *testgen_mode;
-	const struct csid_format *formats;
-	unsigned int nformats;
 };
 
 struct resources;
 
-int msm_csid_subdev_init(struct camss *camss, struct csid_device *csid,
+int msm_csid_subdev_init(struct csid_device *csid,
 			 const struct resources *res, u8 id);
 
 int msm_csid_register_entity(struct csid_device *csid,

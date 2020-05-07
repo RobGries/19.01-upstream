@@ -1,11 +1,19 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * camss-ispif.h
  *
  * Qualcomm MSM Camera Subsystem - ISPIF (ISP Interface) Module
  *
  * Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
- * Copyright (C) 2015-2018 Linaro Ltd.
+ * Copyright (C) 2015-2017 Linaro Ltd.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
 #ifndef QC_MSM_CAMSS_ISPIF_H
 #define QC_MSM_CAMSS_ISPIF_H
@@ -15,11 +23,14 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-subdev.h>
 
+/* Number of ISPIF lines - same as number of CSID hardware modules */
+#define MSM_ISPIF_LINE_NUM 2
+
 #define MSM_ISPIF_PAD_SINK 0
 #define MSM_ISPIF_PAD_SRC 1
 #define MSM_ISPIF_PADS_NUM 2
 
-#define MSM_ISPIF_VFE_NUM 2
+#define MSM_ISPIF_VFE_NUM 1
 
 enum ispif_intf {
 	PIX0,
@@ -35,7 +46,6 @@ struct ispif_intf_cmd_reg {
 };
 
 struct ispif_line {
-	struct ispif_device *ispif;
 	u8 id;
 	u8 csid_id;
 	u8 vfe_id;
@@ -43,8 +53,6 @@ struct ispif_line {
 	struct v4l2_subdev subdev;
 	struct media_pad pads[MSM_ISPIF_PADS_NUM];
 	struct v4l2_mbus_framefmt fmt[MSM_ISPIF_PADS_NUM];
-	const u32 *formats;
-	unsigned int nformats;
 };
 
 struct ispif_device {
@@ -61,8 +69,7 @@ struct ispif_device {
 	struct mutex power_lock;
 	struct ispif_intf_cmd_reg intf_cmd[MSM_ISPIF_VFE_NUM];
 	struct mutex config_lock;
-	unsigned int line_num;
-	struct ispif_line *line;
+	struct ispif_line line[MSM_ISPIF_LINE_NUM];
 };
 
 struct resources_ispif;

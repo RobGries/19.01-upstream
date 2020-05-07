@@ -1,11 +1,19 @@
-/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * camss.h
  *
  * Qualcomm MSM Camera Subsystem - Core
  *
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
- * Copyright (C) 2015-2018 Linaro Ltd.
+ * Copyright (C) 2015-2017 Linaro Ltd.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
 #ifndef QC_MSM_CAMSS_H
 #define QC_MSM_CAMSS_H
@@ -23,6 +31,9 @@
 #include "camss-ispif.h"
 #include "camss-vfe.h"
 
+#define CAMSS_CSID_NUM 2
+#define CAMSS_CSIPHY_NUM 2
+
 #define to_camss(ptr_module)	\
 	container_of(ptr_module, struct camss, ptr_module)
 
@@ -39,7 +50,7 @@
 #define to_device_index(ptr_module, index)	\
 	(to_camss_index(ptr_module, index)->dev)
 
-#define CAMSS_RES_MAX 17
+#define CAMSS_RES_MAX 15
 
 struct resources {
 	char *regulator[CAMSS_RES_MAX];
@@ -56,24 +67,15 @@ struct resources_ispif {
 	char *interrupt;
 };
 
-enum camss_version {
-	CAMSS_8x16,
-	CAMSS_8x96,
-};
-
 struct camss {
-	enum camss_version version;
 	struct v4l2_device v4l2_dev;
 	struct v4l2_async_notifier notifier;
 	struct media_device media_dev;
 	struct device *dev;
-	int csiphy_num;
-	struct csiphy_device *csiphy;
-	int csid_num;
-	struct csid_device *csid;
+	struct csiphy_device csiphy[CAMSS_CSIPHY_NUM];
+	struct csid_device csid[CAMSS_CSID_NUM];
 	struct ispif_device ispif;
-	int vfe_num;
-	struct vfe_device *vfe;
+	struct vfe_device vfe;
 	atomic_t ref_count;
 };
 
