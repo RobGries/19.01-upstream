@@ -1390,7 +1390,7 @@
 				<&gcc GCC_CAMSS_CSI_VFE0_CLK>,
 				<&gcc GCC_CAMSS_VFE_AHB_CLK>,
 				<&gcc GCC_CAMSS_VFE_AXI_CLK>;
-			clock-names = "top_ahb",
+			clock-names = "camss_top_ahb",
 				"ispif_ahb",
 				"csiphy0_timer",
 				"csiphy1_timer",
@@ -1404,11 +1404,11 @@
 				"csi1_phy",
 				"csi1_pix",
 				"csi1_rdi",
-				"ahb",
-				"vfe0",
-				"csi_vfe0",
-				"vfe_ahb",
-				"vfe_axi";
+				"camss_ahb",
+				"camss_vfe_vfe",
+				"camss_csi_vfe",
+				"iface",
+				"bus";
 			vdda-supply = <&pm8916_l2>;
 			iommus = <&apps_iommu 3>;
 			status = "disabled";
